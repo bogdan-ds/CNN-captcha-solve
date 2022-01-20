@@ -551,35 +551,10 @@ def crop(filename, num_boxes=5):
     yield cropped
 ```
 
-Another function will convert an image to a format suitable for the model to process. Tensorflow has some built in functionality that will read the image, convert it into a tensor, resize it into a given shape. 
-
-
-
-```python
-import tensorflow as tf
-
-def load_and_prep_image(filename, shape=(30,32)):
-  """
-  Reads an image from filename and turns it into a tensor and reshapes 
-  it to the defined shape
-  """
-  # Read in image
-  img = tf.io.read_file(filename)
-  # Decode read file into a tensor
-  img = tf.image.decode_image(img)
-  # Resize the image
-  img = tf.image.resize(img, size=shape)
-  # Rescale the image (get all values between 0 and 1)
-  img = img/255.
-  return img
-```
-
 Now let's put everything together into a function that receives the model, filename and class names and does a prediction.
 
 
 ```python
-import os
-
   
 def pred_and_plot(model, filename, class_names=class_names):
   """
@@ -588,12 +563,12 @@ def pred_and_plot(model, filename, class_names=class_names):
   """
   all_preds = list()
   for cropped in crop(filename):
-    # save the cropped image temporarily
-    cropped.save('tmp.jpg')
-
-    # Import the target image and preprocess it
-    img = load_and_prep_image('tmp.jpg')
-  
+    # Convert the image data to a tensor
+    img_tensor = tf.convert_to_tensor(cropped)
+    # Resizing the image in the expected input format
+    img = tf.image.resize(img_tensor, size=(30, 32))  
+    # Scaling the image data
+    img = img / 255.
     # Make a prediction, we expand the dims as we get a 3 dimensional tensor, 
     # while the model expects a 4 dimensional one
     pred = model.predict(tf.expand_dims(img, axis=0))
@@ -602,7 +577,6 @@ def pred_and_plot(model, filename, class_names=class_names):
     pred_class = class_names[tf.argmax(pred[0])]
     all_preds.append(pred_class)
 
-  os.remove('tmp.jpg')
   complete_img = Image.open(filename, 'r')
   plt.imshow(np.asarray(complete_img))
   plt.title("Prediction: {}".format(''.join(all_preds)))
